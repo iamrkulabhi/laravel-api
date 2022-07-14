@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -24,6 +25,7 @@ class UserController extends Controller
         ]);
 
         if( $validation->fails() ){
+            Log::error('Validation error while register.', ['errors' => $validation->errors()]);
             return response()->json([
                 'success' => false,
                 'messgage' => $validation->errors()
@@ -34,7 +36,7 @@ class UserController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password)
             ]);
-
+            Log::info('New user registered.', ['id' => $user->id]);
             return response()->json([
                 'success' => true,
                 'data' => $user
@@ -51,6 +53,7 @@ class UserController extends Controller
         ]);
 
         if( $validation->fails() ) {
+            Log::error('Validation error while login.', ['errors' => $validation->errors()]);
             return response()->json([
                 'success' => false,
                 'message' => $validation->errors()
@@ -58,12 +61,12 @@ class UserController extends Controller
         }else{
             $user = User::where('email', $request->email)->first(); //dd($user);
             if( !$user || !Hash::check($request->password, $user->password) ){
+                Log::error('User failed to login due to bad credentials .', [$request->all()]);
                 return response()->json([
                 'success' => false,
                     'message' => 'Bad credentials'
                 ], 400);
             }
-
             $token = $user->createToken('app-token')->plainTextToken;
 
             /*
@@ -71,7 +74,7 @@ class UserController extends Controller
             */
             // $data = ['message' => 'This is test welcome message'];
             // Mail::to($user->email, $user->name)->send(new TestEmail($data));
-
+            Log::info('User logged in successfully', ['id' => $user->id]);
             return response()->json([
                 'success' => true,
                 'token' => $token
@@ -86,6 +89,7 @@ class UserController extends Controller
         ]);
 
         if( $validation->fails() ) {
+            Log::error('Validation error while forget password.', ['errors' => $validation->errors()]);
             return response()->json([
                 'success' => false,
                 'message' => $validation->errors()
@@ -93,6 +97,7 @@ class UserController extends Controller
         }else{
             // AuthServiceProvider -> boot() method to customie reset password link
             $status = Password::sendResetLink($request->only('email'));
+            Log::info('User attempted for forget password', ['email' => $request->only('email')]);
             return $status === Password::RESET_LINK_SENT ? response()->json(['success' => true, 'message' => __($status)], 200) : response()->json(['success' => false, 'message' => __($status)], 400);
         }
     }
@@ -106,6 +111,7 @@ class UserController extends Controller
         ]);
 
         if( $validation->fails() ) {
+            Log::error('Validation error while reset password.', ['errors' => $validation->errors()]);
             return response()->json([
                 'success' => false,
                 'message' => $validation->errors()
@@ -122,7 +128,7 @@ class UserController extends Controller
                     event(new PasswordReset($user));
                 }
             );
-
+            Log::info('User attempted for reset password.', ['email' => $request->email]);
             return $status === Password::PASSWORD_RESET ? response()->json(['success' => true, 'message' => __($status)], 200) : response()->json(['success' => false, 'message' => [__($status)] ], 400);
         }
         

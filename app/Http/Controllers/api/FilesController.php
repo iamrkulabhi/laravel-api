@@ -6,19 +6,22 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\File;
 use Storage;
+use Illuminate\Support\Facades\Log;
 
 class FilesController extends Controller
 {
     public function upload_method(Request $request) {
 
         if( !$request->hasFile('selected_files') ) {
+            Log::error('Error while upload file.', ['errors' => 'No file seleted']);
             return response()->json([
                 'success' => false,
                 'message' => 'File not found'
             ], 400);
         }
 
-        if( !$request->user()->hasPermissionTo('edit articles') ) {
+        if( !$request->user()->hasPermissionTo('create articles') ) {
+            Log::error('User does not have permission to upload file.', ['user_id' => $request->user()->id]);
             return response()->json([
                 'success' => false,
                 'message' => 'user does not have permission to upload file'
@@ -55,11 +58,13 @@ class FilesController extends Controller
             foreach ($uploaded_file_details as $each_file) {
                 File::create($each_file);
             }
+            Log::info(count($uploaded_file_details) . " file(s) uploaded");
             return response()->json([
                 'success' => true,
                 'message' => count($uploaded_file_details) . " file(s) uploaded"
             ], 200);
         }else{
+            Log::error('Error while upload file.', ['errors' => 'something went wrong while file uploaded.']);
             return response()->json([
                 'success' => false,
                 'message' => 'No file uploaded'
@@ -72,6 +77,7 @@ class FilesController extends Controller
         $file = File::find($id); 
 
         if($file == null) {
+            Log::error('Error while delete file.', ['errors' => 'Requested file is invalid for deletion.']);
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid file requested'
@@ -82,12 +88,13 @@ class FilesController extends Controller
             if(Storage::exists($file->path)) // if file exists in storage path
                 Storage::delete($file->path); // remove the file from storage path
             $file->delete(); // delete file from database
+            Log::info("file deleted");
             return response()->json([
                 'success' => true,
                 'message' => "File deleted"
             ], 200);
         }
-
+        Log::error('User does not have permission to delete file.', ['user_id' => $request->user()->id]);
         return response()->json([
             'success' => false,
             'message' => 'User is not eligible for delete file'
